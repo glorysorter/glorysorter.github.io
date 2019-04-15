@@ -1,0 +1,153 @@
+<!doctype html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<style>
+html {
+	font-family: sans-serif;
+}
+table {
+  border-collapse: collapse;
+  text-align: center;
+}
+td {
+  border: 1px solid #efefef;
+  padding: 4px;
+}
+tr:nth-child(even) {
+  background: #efefff;
+}
+/*tbody tr:last-child {
+  background: #a9a9ef;
+  text-align: center;
+}
+tbody tr:nth-last-child(2) {
+  background: #d9d9ff;
+}*/
+tr:first-child, tr:last-child {
+	background: #d9d9ff;
+}
+input {	
+}
+button {
+}
+#teamtable td{
+	padding: 8px 12px;
+}
+o {
+  opacity: 0.3;
+}
+</style>
+<script src="e_t.js"></script>
+<script type="text/javascript">
+
+var apiKey = "a1d0cb6dbabe458fb9b177d444b88ca0";
+var btagtest = /^\w{1,12}#\d{3,5}$/;
+
+function api_a() {
+	var xhr = new XMLHttpRequest();
+	var args = Array.prototype.slice.call(arguments);
+	var callback = args.shift();
+	var endpoint = `https://www.bungie.net/Platform/Destiny2/${args.join('/')}/`;
+	if (endpoint.indexOf('?')>0) endpoint = endpoint.replace(/\/$/g, '');
+	xhr.open("GET", endpoint, true);
+	xhr.setRequestHeader("X-API-Key", apiKey);
+
+	xhr.onreadystatechange = function(){
+	 if(this.readyState === 4 && this.status === 200){
+	  callback(JSON.parse(this.responseText));
+	 }
+	}
+
+	xhr.send();
+}
+
+//do glory retrieval for a single btag
+function get_glory(btag) {
+	api_search_a([api_profile_a, process_profile], btag);
+}
+
+// run search using btag, run callbacks on found membershipId
+function api_search_a(callbacks, btag) {
+	if (btagtest.test(btag)) api_a(function(returned_json){
+		//run this function's callback, pass the rest on
+		callbacks.shift()(callbacks, returned_json.Response[0].membershipId);
+	}
+	, 'SearchDestinyPlayer', '4', encodeURIComponent(btag));
+}
+
+// get profile using membershipId, run callback on results
+function api_profile_a(callbacks, id) {
+	api_a(callbacks.shift(), '4', 'Profile', id, '?components=100,202');
+}
+
+//do something with a returned name & glory
+function process_profile(returned_json) {
+	//console.log( returned_json.Response.characterProgressions.data[returned_json.Response.profile.data.characterIds[0]].progressions[2679551909].currentProgress );
+	//returned_json.Response.characterProgressions.data[returned_json.Response.profile.data.characterIds[0]].progressions[2679551909].currentProgress
+	//returned_json.Response.profile.data.userInfo.displayName
+	document.querySelectorAll('.player').forEach(function(node, index){
+		if (node.value.split('#').shift() == returned_json.Response.profile.data.userInfo.displayName){
+			document.querySelectorAll('.glory')[index].value = returned_json.Response.characterProgressions.data[returned_json.Response.profile.data.characterIds[0]].progressions[2679551909].currentProgress;
+			document.querySelectorAll('.glory')[index].style = "background:#afa;";
+		}
+	});
+}
+
+//initiate a glory lookup for each btag
+function get_glories(){
+	document.querySelectorAll('.player').forEach(function(node){node.value = node.value.replace(/\s/g, '')});
+	document.querySelectorAll('.glory').forEach(function(node){node.style = "background:#fff;"});
+	document.querySelectorAll('.player').forEach(function(node){get_glory(node.value)});
+}
+
+function runconversion(){
+
+	var tablecontent = "";
+	var players = [];
+
+	document.querySelectorAll('.player').forEach(function(node, index){
+		players.push({id:node.value.split('#').shift(), strength:parseInt(document.querySelectorAll('.glory')[index].value)});
+	});
+
+	console.log(players);
+	
+
+	var calc = e_t(players);
+
+
+	tablecontent = `<tr><td>team 1</td><td>team 2</td></tr>`;
+	for (i = 0; i < calc.teams[0].length; i++) {
+		tablecontent += `<tr><td>${calc.teams[0][i].id} <o>&mdash; ${calc.teams[0][i].strength}</o></td><td>${calc.teams[1][i].id} <o>&mdash; ${calc.teams[1][i].strength}</o></td></tr>`;
+	}
+	tablecontent += `<tr><td>${Math.round(calc.strengths[0]/calc.teams[0].length)} avg</td><td>${Math.round(calc.strengths[1]/calc.teams[1].length)} avg</td></tr>`;
+	tablecontent += `<tr><td colspan=2>${Math.abs(Math.round(calc.strengths[0]/calc.teams[0].length)-Math.round(calc.strengths[1]/calc.teams[1].length))} difference</td></tr>`;
+	//document.getElementById('teams').value = txtcontent.trim();
+	document.getElementById('teamtable').innerHTML = tablecontent;
+}
+
+</script>
+
+<title></title>
+</head>
+
+<body>
+<table>
+<tr><td>battletag#0000 &#x2193;</td><td>glory &#x2193;</td></tr>
+<tr><td><input class=player></td><td><input class=glory></td></tr>
+<tr><td><input class=player></td><td><input class=glory></td></tr>
+<tr><td><input class=player></td><td><input class=glory></td></tr>
+<tr><td><input class=player></td><td><input class=glory></td></tr>
+<tr><td><input class=player></td><td><input class=glory></td></tr>
+<tr><td><input class=player></td><td><input class=glory></td></tr>
+<tr><td><input class=player></td><td><input class=glory></td></tr>
+<tr><td><input class=player></td><td><input class=glory></td></tr>
+<tr><td><button onclick="get_glories()">auto-fill glory &#x2197;</button></td><td><button onclick="runconversion()">sort teams &#x2199;</button></td></tr>
+
+</table>
+
+<br><br><br>
+<table id=teamtable>
+</table>
+</body>
+</html>
